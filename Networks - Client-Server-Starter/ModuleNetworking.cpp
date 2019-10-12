@@ -62,6 +62,21 @@ bool ModuleNetworking::preUpdate()
 	byte incomingDataBuffer[incomingDataBufferSize];
 
 	// TODO(jesus): select those sockets that have a read operation available
+	fd_set readSet;
+	FD_ZERO(&readSet);
+
+	for (auto s : sockets) {
+		FD_SET(s, &readSet);
+	}
+
+	struct timeval timeout;
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+
+	if (select(0, &readSet, nullptr, nullptr, &timeout) == SOCKET_ERROR)
+		reportError("Select error");
+
+
 
 	// TODO(jesus): for those sockets selected, check wheter or not they are
 	// a listen socket or a standard socket and perform the corresponding
@@ -72,12 +87,25 @@ bool ModuleNetworking::preUpdate()
 	// connected socket to the managed list of sockets.
 	// On recv() success, communicate the incoming data received to the
 	// subclass (use the callback onSocketReceivedData()).
-
 	// TODO(jesus): handle disconnections. Remember that a socket has been
-	// disconnected from its remote end either when recv() returned 0,
-	// or when it generated some errors such as ECONNRESET.
-	// Communicate detected disconnections to the subclass using the callback
-	// onSocketDisconnected().
+				// disconnected from its remote end either when recv() returned 0,
+				// or when it generated some errors such as ECONNRESET.
+				// Communicate detected disconnections to the subclass using the callback
+				// onSocketDisconnected().
+	for (auto s : sockets) {
+		if (FD_ISSET(s, &readSet)) {
+			if (isListenSocket(s)) { // Listener, time to connect
+				
+
+			}
+			else {
+
+			
+			}
+
+		}
+	}
+
 
 	// TODO(jesus): Finally, remove all disconnected sockets from the list
 	// of managed sockets.

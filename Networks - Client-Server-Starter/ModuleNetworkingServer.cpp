@@ -10,12 +10,33 @@
 bool ModuleNetworkingServer::start(int port)
 {
 	// TODO(jesus): TCP listen socket stuff
+	//winsock init
+	WSADATA wsadata;
+	if (WSAStartup(MAKEWORD(2, 2), &wsadata) == SOCKET_ERROR)
+		reportError("WSAStartup error");
 	// - Create the listenSocket
+	listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (listenSocket == INVALID_SOCKET)
+		reportError("Socket creation error");
 	// - Set address reuse
+	int enable = 1;
+	int result = setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&enable, sizeof(int));
+	if (result == SOCKET_ERROR)
+		reportError("Set address reuse error");
 	// - Bind the socket to a local interface
-	// - Enter in listen mode
-	// - Add the listenSocket to the managed list of sockets using addSocket()
+	struct sockaddr_in serverAddr;
+	serverAddr.sin_family = AF_INET; // IPv4
+	serverAddr.sin_addr.S_un.S_addr = INADDR_ANY; // Any address
+	serverAddr.sin_port = htons(port); // Port
 
+	if (bind(listenSocket, (const sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+		reportError("Socket bind error");
+
+	// - Enter in listen mode
+	if (listen(listenSocket, 5) == SOCKET_ERROR)
+		reportError("Listening error");
+	// - Add the listenSocket to the managed list of sockets using addSocket()
+	addSocket(listenSocket);
 	state = ServerState::Listening;
 
 	return true;

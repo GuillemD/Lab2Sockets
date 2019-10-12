@@ -6,11 +6,26 @@ bool  ModuleNetworkingClient::start(const char * serverAddressStr, int serverPor
 	playerName = pplayerName;
 
 	// TODO(jesus): TCP connection stuff
+	//winsock init
+	WSADATA wsadata;
+	if (WSAStartup(MAKEWORD(2, 2), &wsadata) == SOCKET_ERROR)
+		reportError("WSAStartup error");
 	// - Create the socket
+	c_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if (c_socket == INVALID_SOCKET)
+		reportError("Socket creation error");
 	// - Create the remote address object
-	// - Connect to the remote address
-	// - Add the created socket to the managed list of sockets using addSocket()
+	serverAddress.sin_family = AF_INET; //IPv4
+	inet_pton(AF_INET, serverAddressStr, &serverAddress.sin_addr);
+	serverAddress.sin_port = htons(serverPort);
 
+	// - Connect to the remote address
+	const int serveraddlen = sizeof(serverAddress);
+	int connectRes = connect(c_socket, (const sockaddr*)&serverAddress, serveraddlen);
+	if (connectRes == SOCKET_ERROR)
+		reportError("Connection error");
+	// - Add the created socket to the managed list of sockets using addSocket()
+	addSocket(c_socket);
 	// If everything was ok... change the state
 	state = ClientState::Start;
 
@@ -27,6 +42,12 @@ bool ModuleNetworkingClient::update()
 	if (state == ClientState::Start)
 	{
 		// TODO(jesus): Send the player name to the server
+		char inputBuffer[100];
+		strcpy_s(inputBuffer, playerName.c_str());
+		if (send(c_socket, inputBuffer, sizeof(inputBuffer), 0) == SOCKET_ERROR)
+			reportError("Sending info error");
+
+		state = ClientState::Logging;
 	}
 
 	return true;
