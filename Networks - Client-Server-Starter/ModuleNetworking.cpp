@@ -61,7 +61,7 @@ bool ModuleNetworking::preUpdate()
 	const uint32 incomingDataBufferSize = Kilobytes(1);
 	byte incomingDataBuffer[incomingDataBufferSize];
 
-	// TODO(jesus): select those sockets that have a read operation available
+	
 	fd_set readSet;
 	FD_ZERO(&readSet);
 
@@ -69,14 +69,12 @@ bool ModuleNetworking::preUpdate()
 		FD_SET(s, &readSet);
 	}
 
-	struct timeval timeout;
+	timeval timeout;
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 0;
-
+	// TODO(jesus): select those sockets that have a read operation available
 	if (select(0, &readSet, nullptr, nullptr, &timeout) == SOCKET_ERROR)
 		reportError("Select error");
-
-
 
 	// TODO(jesus): for those sockets selected, check wheter or not they are
 	// a listen socket or a standard socket and perform the corresponding
@@ -85,21 +83,56 @@ bool ModuleNetworking::preUpdate()
 	// On accept() success, communicate the new connected socket to the
 	// subclass (use the callback onSocketConnected()), and add the new
 	// connected socket to the managed list of sockets.
-	// On recv() success, communicate the incoming data received to the
-	// subclass (use the callback onSocketReceivedData()).
-	// TODO(jesus): handle disconnections. Remember that a socket has been
-				// disconnected from its remote end either when recv() returned 0,
-				// or when it generated some errors such as ECONNRESET.
-				// Communicate detected disconnections to the subclass using the callback
-				// onSocketDisconnected().
+	
+	
+				
 	for (auto s : sockets) {
 		if (FD_ISSET(s, &readSet)) {
 			if (isListenSocket(s)) { // Listener, time to connect
 				
+				SOCKET socket = INVALID_SOCKET;
+				sockaddr_in address;
+				int addresslen = sizeof(address);
+				
+				socket = accept(s, (sockaddr*)&address, &addresslen);
 
+
+				if (socket == INVALID_SOCKET)
+					reportError("Socket accept error");
+				else
+				{
+					onSocketConnected(socket, address);
+					addSocket(socket);
+				}
 			}
 			else {
-
+				// TODO(jesus): handle disconnections. Remember that a socket has been
+				// disconnected from its remote end either when recv() returned 0,
+				// or when it generated some errors such as ECONNRESET.
+				// Communicate detected disconnections to the subclass using the callback
+				// onSocketDisconnected().
+				int receive = recv(s, (char*)incomingDataBuffer, incomingDataBufferSize, 0);
+				if (receive == SOCKET_ERROR)
+				{
+					reportError("Information receive error");
+					disconnected_sockets.push_back(s);
+					onSocketDisconnected(s);
+				}
+				else
+				{
+					if (receive == 0 || receive == ECONNRESET)
+					{
+						disconnected_sockets.push_back(s);
+						onSocketDisconnected(s);
+					}
+					else
+					{
+						// On recv() success, communicate the incoming data received to the
+						// subclass (use the callback onSocketReceivedData()).
+						incomingDataBuffer[receive] = '\0';
+						onSocketReceivedData(s, incomingDataBuffer);
+					}
+				}
 			
 			}
 
@@ -109,6 +142,7 @@ bool ModuleNetworking::preUpdate()
 
 	// TODO(jesus): Finally, remove all disconnected sockets from the list
 	// of managed sockets.
+
 
 	return true;
 }
