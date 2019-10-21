@@ -8,9 +8,9 @@ bool  ModuleNetworkingClient::start(const char * serverAddressStr, int serverPor
 	// TODO(jesus): TCP connection stuff
 
 	//winsock init done in module networking
-	/*WSADATA wsadata;
+	WSADATA wsadata;
 	if (WSAStartup(MAKEWORD(2, 2), &wsadata) == SOCKET_ERROR)
-		reportError("WSAStartup error (client)");*/
+		reportError("WSAStartup error (client)");
 	// - Create the socket
 
 	c_socket = socket(AF_INET, SOCK_STREAM, 0);

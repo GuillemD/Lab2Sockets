@@ -12,9 +12,9 @@ bool ModuleNetworkingServer::start(int port)
 	// TODO(jesus): TCP listen socket stuff
 	
 	//winsock init done in modulenetworking.cpp
-	/*WSADATA wsadata;
+	WSADATA wsadata;
 	if (WSAStartup(MAKEWORD(2, 2), &wsadata) == SOCKET_ERROR)
-		reportError("WSAStartup error");*/
+		reportError("WSAStartup error");
 
 	// - Create the listenSocket
 	listenSocket = socket(AF_INET, SOCK_STREAM, 0);

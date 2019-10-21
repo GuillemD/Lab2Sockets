@@ -97,7 +97,7 @@ bool ModuleNetworking::preUpdate()
 				socket = accept(s, (sockaddr*)&address, &addresslen);
 
 
-				if (socket == INVALID_SOCKET)
+				if (socket == SOCKET_ERROR)
 					reportError("Socket accept error");
 				else
 				{
@@ -118,31 +118,30 @@ bool ModuleNetworking::preUpdate()
 					disconnected_sockets.push_back(s);
 					onSocketDisconnected(s);
 				}
-				else
+				else if(receive == 0 || receive == ECONNRESET)
 				{
-					if (receive == 0 || receive == ECONNRESET)
-					{
-						disconnected_sockets.push_back(s);
-						onSocketDisconnected(s);
-					}
-					else
-					{
-						// On recv() success, communicate the incoming data received to the
-						// subclass (use the callback onSocketReceivedData()).
-						incomingDataBuffer[receive] = '\0';
-						onSocketReceivedData(s, incomingDataBuffer);
-					}
+					
+					onSocketDisconnected(s);
+					disconnected_sockets.push_back(s);
+				}
+				else {
+					
+					// On recv() success, communicate the incoming data received to the
+					// subclass (use the callback onSocketReceivedData()).
+					incomingDataBuffer[receive] = '\0';
+					onSocketReceivedData(s, incomingDataBuffer);
+					
 				}
 			
 			}
-
 		}
 	}
 
 
 	// TODO(jesus): Finally, remove all disconnected sockets from the list
 	// of managed sockets.
-
+	for (auto d : disconnected_sockets)
+		sockets.erase(std::remove(sockets.begin(), sockets.end(), d), sockets.end());
 
 	return true;
 }
