@@ -105,13 +105,14 @@ bool ModuleNetworking::preUpdate()
 					reportError("Socket receive info error");
 					disconnected_sockets.push_back(s);
 				}
-				else {
-					if (error == 0 || error == ECONNRESET)
+				else if(error == 0 || error == ECONNRESET){
+					
 						disconnected_sockets.push_back(s);
-					else {
-						incomingDataBuffer[error] = '\0';
-						onSocketReceivedData(s, incomingDataBuffer);
-					}
+					
+				}
+				else {
+					incomingDataBuffer[error] = '\0';
+					onSocketReceivedData(s, incomingDataBuffer);
 				}
 			}
 		}
