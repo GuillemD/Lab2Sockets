@@ -45,7 +45,7 @@ bool ModuleNetworkingClient::update()
 		// TODO(jesus): Send the player name to the server
 		int error = send(MySocket, playerName.c_str(), playerName.size(), 0);
 		if (error == SOCKET_ERROR)
-			reportError("Failed to send client name. PepeHands");
+			reportError("Sending error");
 	}
 
 	return true;
@@ -63,6 +63,12 @@ bool ModuleNetworkingClient::gui()
 		ImGui::Image(tex->shaderResource, texSize);
 
 		ImGui::Text("%s connected to the server...", playerName.c_str());
+
+		if (ImGui::Button("Disconnect"))
+		{
+			onSocketDisconnected(MySocket);
+			shutdown(MySocket, 2);
+		}
 
 		ImGui::End();
 	}
