@@ -35,8 +35,6 @@ protected:
 
 	std::vector<SOCKET> sockets;
 
-	std::vector<SOCKET> disconnected_sockets;
-
 	void addSocket(SOCKET socket);
 
 	void disconnect();

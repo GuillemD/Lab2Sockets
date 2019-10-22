@@ -1,6 +1,6 @@
 #include "Networks.h"
 #include "ModuleNetworking.h"
-
+#include <list>
 
 static uint8 NumModulesUsingWinsock = 0;
 
@@ -60,88 +60,74 @@ bool ModuleNetworking::preUpdate()
 	// NOTE(jesus): You can use this temporary buffer to store data from recv()
 	const uint32 incomingDataBufferSize = Kilobytes(1);
 	byte incomingDataBuffer[incomingDataBufferSize];
-
 	
-	fd_set readSet;
-	FD_ZERO(&readSet);
-
+	// New socket set
+	fd_set readfds;
+	FD_ZERO(&readfds);
+	// Fill the set
 	for (auto s : sockets) {
-		FD_SET(s, &readSet);
+		FD_SET(s, &readfds);
 	}
-
+	// Timeout (return immediately)
 	timeval timeout;
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 0;
+
 	// TODO(jesus): select those sockets that have a read operation available
-	if (select(0, &readSet, nullptr, nullptr, &timeout) == SOCKET_ERROR)
-		reportError("Select error");
-
-	// TODO(jesus): for those sockets selected, check wheter or not they are
-	// a listen socket or a standard socket and perform the corresponding
-	// operation (accept() an incoming connection or recv() incoming data,
-	// respectively).
-	// On accept() success, communicate the new connected socket to the
-	// subclass (use the callback onSocketConnected()), and add the new
-	// connected socket to the managed list of sockets.
-	
-	
-				
-	for (auto s : sockets) {
-		if (FD_ISSET(s, &readSet)) {
-			if (isListenSocket(s)) { // Listener, time to connect
-				
-				SOCKET socket = INVALID_SOCKET;
-				sockaddr_in address;
-				int addresslen = sizeof(address);
-				
-				socket = accept(s, (sockaddr*)&address, &addresslen);
+	int error = select(0, &readfds, nullptr, nullptr, &timeout);
+	if (error == SOCKET_ERROR) 
+		reportError("Socket selection error");
+	std::vector<SOCKET> disconnected_sockets;
 
 
-				if (socket == SOCKET_ERROR)
+	for (auto s : sockets)
+	{
+		if (FD_ISSET(s, &readfds)) {
+			if (isListenSocket(s)) { // Is the server socket
+
+				SOCKET Socket = INVALID_SOCKET;
+				sockaddr_in addr;
+				int len = sizeof(addr);
+				Socket = accept(s, (sockaddr*)&addr, &len);
+
+				if (Socket == INVALID_SOCKET)
 					reportError("Socket accept error");
-				else
-				{
-					onSocketConnected(socket, address);
-					addSocket(socket);
+				else {
+					onSocketConnected(Socket, addr);
+					addSocket(Socket);
 				}
+
 			}
-			else {
-				// TODO(jesus): handle disconnections. Remember that a socket has been
-				// disconnected from its remote end either when recv() returned 0,
-				// or when it generated some errors such as ECONNRESET.
-				// Communicate detected disconnections to the subclass using the callback
-				// onSocketDisconnected().
-				int receive = recv(s, (char*)incomingDataBuffer, incomingDataBufferSize, 0);
-				if (receive == SOCKET_ERROR)
-				{
-					reportError("Information receive error");
-					disconnected_sockets.push_back(s);
-					onSocketDisconnected(s);
-				}
-				else if(receive == 0 || receive == ECONNRESET)
-				{
+			else { 
 					
-					onSocketDisconnected(s);
+				error = recv(s, (char*)incomingDataBuffer, incomingDataBufferSize, 0);
+				if (error == SOCKET_ERROR) {
+					reportError("Socket receive info error");
 					disconnected_sockets.push_back(s);
 				}
 				else {
-					
-					// On recv() success, communicate the incoming data received to the
-					// subclass (use the callback onSocketReceivedData()).
-					incomingDataBuffer[receive] = '\0';
-					onSocketReceivedData(s, incomingDataBuffer);
-					
+					if (error == 0 || error == ECONNRESET)
+						disconnected_sockets.push_back(s);
+					else {
+						incomingDataBuffer[error] = '\0';
+						onSocketReceivedData(s, incomingDataBuffer);
+					}
 				}
-			
 			}
 		}
 	}
 
-
-	// TODO(jesus): Finally, remove all disconnected sockets from the list
-	// of managed sockets.
-	for (auto d : disconnected_sockets)
-		sockets.erase(std::remove(sockets.begin(), sockets.end(), d), sockets.end());
+	for (std::vector<SOCKET>::iterator it = disconnected_sockets.begin();it!= disconnected_sockets.end();it++) {
+		for (int i = 0; i < sockets.size(); i++) {
+			if (*it == sockets[i]) {
+				onSocketDisconnected(sockets[i]);
+				sockets.erase(sockets.begin() + i);
+				
+			}
+		}
+		
+	
+	}
 
 	return true;
 }

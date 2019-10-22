@@ -4,37 +4,32 @@
 bool  ModuleNetworkingClient::start(const char * serverAddressStr, int serverPort, const char *pplayerName)
 {
 	playerName = pplayerName;
+	int error;
 
 	// TODO(jesus): TCP connection stuff
-
-	//winsock init done in module networking
-	WSADATA wsadata;
-	if (WSAStartup(MAKEWORD(2, 2), &wsadata) == SOCKET_ERROR)
-		reportError("WSAStartup error (client)");
 	// - Create the socket
-
-	c_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (c_socket == INVALID_SOCKET)
-		reportError("Socket creation error (client)");
+	MySocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (MySocket == SOCKET_ERROR)
+		reportError("Couldn't create client socket. :c");
 
 	// - Create the remote address object
-	serverAddress.sin_family = AF_INET; //IPv4
-	inet_pton(AF_INET, serverAddressStr, &serverAddress.sin_addr);
+	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_port = htons(serverPort);
+	inet_pton(AF_INET, serverAddressStr, &serverAddress.sin_addr);
 
 	// - Connect to the remote address
-	const int serveraddlength = sizeof(serverAddress);
-	int connectRes = connect(c_socket, (const sockaddr*)&serverAddress, serveraddlength);
-	if (connectRes == SOCKET_ERROR)
-		reportError("Connection error (client)");
-	else
-	{
+	error = connect(MySocket, (const sockaddr*)&serverAddress, sizeof(serverAddress));
+	if (error == SOCKET_ERROR)
+		reportError("Error connecting to the server. F");
+	else {
 		// - Add the created socket to the managed list of sockets using addSocket()
-		addSocket(c_socket);
+		addSocket(MySocket);
+
 		// If everything was ok... change the state
 		state = ClientState::Start;
+
 	}
-	
+
 	return true;
 }
 
@@ -48,12 +43,9 @@ bool ModuleNetworkingClient::update()
 	if (state == ClientState::Start)
 	{
 		// TODO(jesus): Send the player name to the server
-		char inputBuffer[100];
-		strcpy_s(inputBuffer, playerName.c_str());
-		if (send(c_socket, inputBuffer, sizeof(inputBuffer), 0) == SOCKET_ERROR)
-			reportError("Sending info error (client)");
-
-		state = ClientState::Logging;
+		int error = send(MySocket, playerName.c_str(), playerName.size(), 0);
+		if (error == SOCKET_ERROR)
+			reportError("Failed to send client name. PepeHands");
 	}
 
 	return true;
